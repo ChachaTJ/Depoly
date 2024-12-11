@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import {
   AlertDialog,
@@ -10,13 +10,19 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 
-// State-based styling helper
-const getStateClass = (state, baseClass = 'bg-gray-100', type = 'classical') => {
+// Define types for getStateClass
+type StateType = 'checking' | 'amplified' | 'found' | 'unchecked';
+type SearchType = 'classical' | 'quantum';
+
+const getStateClass = (
+  state: StateType,
+  baseClass: string = 'bg-gray-100',
+  type: SearchType = 'classical'
+): string => {
   switch (state) {
     case 'checking':
       return 'bg-yellow-200';
     case 'amplified':
-      // Quantum amplified 시 더욱 눈에 띄게
       return type === 'quantum'
         ? 'bg-purple-500 animate-ping ring-2 ring-purple-600 ring-offset-1'
         : 'bg-purple-400';
@@ -27,7 +33,20 @@ const getStateClass = (state, baseClass = 'bg-gray-100', type = 'classical') => 
   }
 };
 
-const BitStateVisualization = ({ number, type, physicalQubits, bitLength }) => {
+// Define types for Physical Qubits
+interface PhysicalQubit {
+  hasError: boolean;
+}
+
+// Define props for BitStateVisualization
+interface BitStateVisualizationProps {
+  number: number;
+  type: SearchType;
+  physicalQubits: PhysicalQubit[];
+  bitLength: number;
+}
+
+const BitStateVisualization: React.FC<BitStateVisualizationProps> = ({ number, type, physicalQubits, bitLength }) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
   const dimension = bitLength === 16 ? 4 : 3;
@@ -38,15 +57,15 @@ const BitStateVisualization = ({ number, type, physicalQubits, bitLength }) => {
   }, []);
 
   const bitsPerRow = bitLength / dimension;
-  const rows = [];
+  const rows: string[] = [];
   for (let i = 0; i < dimension; i++) {
     rows.push(binary.slice(i * bitsPerRow, (i + 1) * bitsPerRow));
   }
 
-  const contributions = binary
+  const contributions: number[] = binary
     .split('')
-    .map((bit, i) => bit === '1' ? Math.pow(2, bitLength - 1 - i) : 0);
-  const total = contributions.reduce((a, b) => a + b, 0);
+    .map((bit: string, i: number) => bit === '1' ? Math.pow(2, bitLength - 1 - i) : 0);
+  const total: number = contributions.reduce((a: number, b: number) => a + b, 0);
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -56,7 +75,7 @@ const BitStateVisualization = ({ number, type, physicalQubits, bitLength }) => {
       <div className={`grid grid-rows-${dimension} gap-1`}>
         {rows.map((rowBits, r) => (
           <div key={r} className="flex gap-1">
-            {rowBits.split('').map((bit, c) => (
+            {rowBits.split('').map((bit: string, c) => (
               <div 
                 key={c}
                 className={
@@ -97,7 +116,7 @@ const BitStateVisualization = ({ number, type, physicalQubits, bitLength }) => {
             title="Multiple physical qubits represent and stabilize the quantum state."
           >
             <div className="grid grid-cols-4 gap-1">
-              {physicalQubits.map((q, i) => (
+              {physicalQubits.map((q: PhysicalQubit, i: number) => (
                 <div 
                   key={i}
                   className={`w-4 h-4 rounded-full ${q.hasError ? 'bg-red-400 animate-pulse' : 'bg-green-400'}`}
@@ -114,13 +133,24 @@ const BitStateVisualization = ({ number, type, physicalQubits, bitLength }) => {
   );
 };
 
-const SearchGrid = ({ states, currentIndex, type, numbers, target, bitLength, targetIndex }) => {
+// Define props for SearchGrid
+interface SearchGridProps {
+  states: StateType[];
+  currentIndex: number;
+  type: SearchType;
+  numbers: number[];
+  target: number;
+  bitLength: number;
+  targetIndex: number;
+}
+
+const SearchGrid: React.FC<SearchGridProps> = ({ states, currentIndex, type, numbers, target, bitLength, targetIndex }) => {
   if (bitLength === 9) {
     // 9-bit 시나리오: 모든 room을 한 번에 표시
     const total = states.length; // 512
     const gridSize = 23;
     const gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
-    const rows = [];
+    const rows: StateType[][] = [];
     for (let i = 0; i < gridSize; i++) {
       rows.push(states.slice(i * gridSize, (i + 1) * gridSize));
     }
@@ -131,8 +161,8 @@ const SearchGrid = ({ states, currentIndex, type, numbers, target, bitLength, ta
           className="grid gap-px bg-gray-200 w-full h-full"
           style={{ gridTemplateColumns: gridTemplateColumns }}
         >
-          {rows.map((row, rIdx) => 
-            row.map((state, cIdx) => {
+          {rows.map((row: StateType[], rIdx: number) => 
+            row.map((state: StateType, cIdx: number) => {
               const idx = rIdx * gridSize + cIdx;
               const isCurrentlyChecking = type === 'classical' && idx === currentIndex;
               const cellStateClass = getStateClass(state, 'bg-gray-100', type);
@@ -158,7 +188,7 @@ const SearchGrid = ({ states, currentIndex, type, numbers, target, bitLength, ta
   } else {
     // 16-bit 시나리오: 64개 단위로 Chunking
     const chunkSize = 64; 
-    const chunkedStates = [];
+    const chunkedStates: StateType[][] = [];
     for (let i = 0; i < states.length; i += chunkSize) {
       chunkedStates.push(states.slice(i, i + chunkSize));
     }
@@ -173,7 +203,7 @@ const SearchGrid = ({ states, currentIndex, type, numbers, target, bitLength, ta
           className="grid gap-px bg-gray-200 w-full h-full"
           style={{ gridTemplateColumns: gridTemplateColumns }}
         >
-          {chunkedStates.map((chunk, chunkIndex) => {
+          {chunkedStates.map((chunk: StateType[], chunkIndex: number) => {
             const startIndex = chunkIndex * chunkSize;
             const endIndex = startIndex + chunkSize;
             const isCurrentlyChecking = 
@@ -182,7 +212,7 @@ const SearchGrid = ({ states, currentIndex, type, numbers, target, bitLength, ta
               currentIndex < endIndex;
 
             const baseClass = 'bg-gray-100';
-            const checkedClass = chunk.some((st, i) => 
+            const checkedClass = chunk.some((_: StateType, i: number) => 
               type === 'classical' && numbers[startIndex + i] !== target && currentIndex > startIndex + i
             ) ? 'bg-blue-100' : '';
 
@@ -199,7 +229,7 @@ const SearchGrid = ({ states, currentIndex, type, numbers, target, bitLength, ta
             let quantumChunkHighlight = '';
             if (type === 'quantum' && targetIndex >= startIndex && targetIndex < endIndex) {
               // Chunk 내에 amplified나 found 상태가 있는지 확인
-              const hasAmplifiedOrFound = chunk.some(st => st === 'amplified' || st === 'found');
+              const hasAmplifiedOrFound = chunk.some((st: StateType) => st === 'amplified' || st === 'found');
               if (hasAmplifiedOrFound) {
                 // 보라색 배경 + animate-pulse로 강조
                 quantumChunkHighlight = 'bg-purple-200 animate-pulse';
@@ -220,14 +250,17 @@ const SearchGrid = ({ states, currentIndex, type, numbers, target, bitLength, ta
   }
 };
 
-const SearchSimulation = () => {
-  const [bitLength, setBitLength] = useState(16);
+// Define types for SearchSimulation state
+// interface SearchSimulationState { ... } // 제거됨
+
+const SearchSimulation: React.FC = () => {
+  const [bitLength, setBitLength] = useState<number>(16);
 
   const TOTAL_NUMBERS = 2 ** bitLength;
   const CLASSICAL_DELAY = bitLength === 9 ? 50 : 5; // 9-bit: 느림, 16-bit: 빠름
   const QUANTUM_ITERATIONS = Math.floor(Math.sqrt(TOTAL_NUMBERS));
 
-  const [numbers, setNumbers] = useState(() => {
+  const [numbers, setNumbers] = useState<number[]>(() => {
     const arr = Array.from({ length: TOTAL_NUMBERS }, (_, i) => i + 1);
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -236,22 +269,22 @@ const SearchSimulation = () => {
     return arr;
   });
   
-  const [target, setTarget] = useState(() => numbers[Math.floor(Math.random() * TOTAL_NUMBERS)]);
-  const targetIndex = numbers.findIndex(n => n === target);
+  const [target, setTarget] = useState<number>(() => numbers[Math.floor(Math.random() * TOTAL_NUMBERS)]);
+  const targetIndex: number = numbers.findIndex(n => n === target);
 
-  const [currentNumber, setCurrentNumber] = useState({ classical: 0, quantum: 0 });
-  const [classicalStates, setClassicalStates] = useState(Array(TOTAL_NUMBERS).fill('unchecked'));
-  const [quantumStates, setQuantumStates] = useState(Array(TOTAL_NUMBERS).fill('unchecked'));
-  const [isRunning, setIsRunning] = useState(false);
-  const [currentIndices, setCurrentIndices] = useState({ classical: -1, quantum: -1 });
-  const [checksCount, setChecksCount] = useState({ classical: 0, quantum: 0 });
-  const [showResults, setShowResults] = useState(false);
+  const [currentNumber, setCurrentNumber] = useState<{ classical: number; quantum: number }>({ classical: 0, quantum: 0 });
+  const [classicalStates, setClassicalStates] = useState<StateType[]>(Array(TOTAL_NUMBERS).fill('unchecked'));
+  const [quantumStates, setQuantumStates] = useState<StateType[]>(Array(TOTAL_NUMBERS).fill('unchecked'));
+  const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [currentIndices, setCurrentIndices] = useState<{ classical: number; quantum: number }>({ classical: -1, quantum: -1 });
+  const [checksCount, setChecksCount] = useState<{ classical: number; quantum: number }>({ classical: 0, quantum: 0 });
+  const [showResults, setShowResults] = useState<boolean>(false);
 
-  const [physicalQubits, setPhysicalQubits] = useState(
+  const [physicalQubits, setPhysicalQubits] = useState<PhysicalQubit[]>(
     Array.from({ length: 16 }, () => ({ hasError: false }))
   );
 
-  const cancelRef = useRef(false);
+  const cancelRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (isRunning) {
@@ -330,7 +363,7 @@ const SearchSimulation = () => {
     }
     
     if (!cancelRef.current) {
-      setQuantumStates(prev => prev.map((state, idx) => idx === targetIndex ? 'found' : 'unchecked'));
+      setQuantumStates(prev => prev.map((_, idx) => idx === targetIndex ? 'found' : 'unchecked'));
     }
   };
 
@@ -378,7 +411,7 @@ const SearchSimulation = () => {
     setPhysicalQubits(prev => prev.map(q => ({ ...q, hasError: false })));
   };
 
-  const setBitLengthAndReset = (newBitLength) => {
+  const setBitLengthAndReset = (newBitLength: number) => {
     if (bitLength === newBitLength) return; 
     setBitLength(newBitLength);
     setTimeout(() => {
